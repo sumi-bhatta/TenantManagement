@@ -131,7 +131,7 @@ app.MapGet("/bills/{id}", async (int id, ApplicationDbContext db) =>
 			? Results.Ok(bill)
 			: Results.NotFound()).WithTags("Basic Bills Operations:");
 
-app.MapPost("/bills", async (Bill bill, ApplicationDbContext db) =>
+app.MapPost("/bills", [Authorize] async (Bill bill, ApplicationDbContext db) =>
 {
 	db.Bills.Add(bill);
 	await db.SaveChangesAsync();
@@ -139,7 +139,7 @@ app.MapPost("/bills", async (Bill bill, ApplicationDbContext db) =>
 	return Results.Created($"/bills/{bill.Id}", bill);
 }).WithTags("Basic Bills Operations:");
 
-app.MapPut("/bills/{id}", async (int id, Bill inputBill, ApplicationDbContext db) =>
+app.MapPut("/bills/{id}", [Authorize] async (int id, Bill inputBill, ApplicationDbContext db) =>
 {
 	var bill = await db.Bills.FindAsync(id);
 
@@ -158,7 +158,7 @@ app.MapPut("/bills/{id}", async (int id, Bill inputBill, ApplicationDbContext db
 	return Results.NoContent();
 }).WithTags("Basic Bills Operations:");
 
-app.MapDelete("/bills/{id}", async (int id, ApplicationDbContext db) =>
+app.MapDelete("/bills/{id}", [Authorize] async (int id, ApplicationDbContext db) =>
 {
 	if (await db.Bills.FindAsync(id) is Bill bill)
 	{
@@ -172,10 +172,10 @@ app.MapDelete("/bills/{id}", async (int id, ApplicationDbContext db) =>
 
 // Additional Endpoints
 
-app.MapGet("/tenants/{tenantId}/bills", async (int tenantId, ApplicationDbContext db) =>
+app.MapGet("/tenants/{tenantId}/bills", [Authorize] async (int tenantId, ApplicationDbContext db) =>
 	await db.Bills.Where(b => b.TenantId == tenantId).ToListAsync()).WithTags("Tenants Info :");
 
-app.MapPost("/bills/{id}/pay", async (int id, ApplicationDbContext db) =>
+app.MapPost("/bills/{id}/pay", [Authorize] async (int id, ApplicationDbContext db) =>
 {
 	var bill = await db.Bills.FindAsync(id);
 
@@ -187,13 +187,13 @@ app.MapPost("/bills/{id}/pay", async (int id, ApplicationDbContext db) =>
 	return Results.Ok(bill);
 }).WithTags("Basic Bills Operations:");
 
-app.MapGet("/tenants/{tenantId}/bills/unpaid", async (int tenantId, ApplicationDbContext db) =>
+app.MapGet("/tenants/{tenantId}/bills/unpaid", [Authorize] async (int tenantId, ApplicationDbContext db) =>
 	await db.Bills.Where(b => b.TenantId == tenantId && !b.IsPaid).ToListAsync()).WithTags("Bill Payment Info:");
 
-app.MapGet("/bills/overdue", async (ApplicationDbContext db) =>
+app.MapGet("/bills/overdue", [Authorize] async (ApplicationDbContext db) =>
 	await db.Bills.Where(b => b.DueDate < DateTime.UtcNow && !b.IsPaid).ToListAsync()).WithTags("Bill Payment Info:");
 
-app.MapGet("/tenants/{tenantId}/bills/totaldue", async (int tenantId, ApplicationDbContext db) =>
+app.MapGet("/tenants/{tenantId}/bills/totaldue", [Authorize] async (int tenantId, ApplicationDbContext db) =>
 {
 	var totalDue = await db.Bills
 		.Where(b => b.TenantId == tenantId && !b.IsPaid)
@@ -203,16 +203,16 @@ app.MapGet("/tenants/{tenantId}/bills/totaldue", async (int tenantId, Applicatio
 }).WithTags("Bill Payment Info:");
 
 // Map CRUD operations for Tenants
-app.MapGet("/tenants", async (ApplicationDbContext db) =>
+app.MapGet("/tenants", [Authorize] async (ApplicationDbContext db) =>
 	await db.Tenants.ToListAsync()).WithTags("Tenants Info :");
 
-app.MapGet("/tenants/{id}", async (int id, ApplicationDbContext db) =>
+app.MapGet("/tenants/{id}", [Authorize] async (int id, ApplicationDbContext db) =>
 	await db.Tenants.FindAsync(id)
 		is Tenant tenant
 			? Results.Ok(tenant)
 			: Results.NotFound()).WithTags("Tenants Info :");
 
-app.MapPost("/tenants", async (Tenant tenant, ApplicationDbContext db) =>
+app.MapPost("/tenants", [Authorize] async (Tenant tenant, ApplicationDbContext db) =>
 {
 	db.Tenants.Add(tenant);
 	await db.SaveChangesAsync();
@@ -220,7 +220,7 @@ app.MapPost("/tenants", async (Tenant tenant, ApplicationDbContext db) =>
 	return Results.Created($"/tenants/{tenant.Id}", tenant);
 }).WithTags("Tenants Management:");
 
-app.MapPut("/tenants/{id}", async (int id, Tenant inputTenant, ApplicationDbContext db) =>
+app.MapPut("/tenants/{id}", [Authorize] async (int id, Tenant inputTenant, ApplicationDbContext db) =>
 {
 	var tenant = await db.Tenants.FindAsync(id);
 
@@ -234,7 +234,7 @@ app.MapPut("/tenants/{id}", async (int id, Tenant inputTenant, ApplicationDbCont
 	return Results.NoContent();
 }).WithTags("Tenants Management:");
 
-app.MapDelete("/tenants/{id}", async (int id, ApplicationDbContext db) =>
+app.MapDelete("/tenants/{id}", [Authorize] async (int id, ApplicationDbContext db) =>
 {
 	if (await db.Tenants.FindAsync(id) is Tenant tenant)
 	{
