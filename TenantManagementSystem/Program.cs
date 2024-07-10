@@ -116,11 +116,11 @@ app.MapPost("/login", (UserLogin userLogin) =>
 	}
 
 	return Results.Unauthorized();
-});
+}).WithTags("2. Login");
 
 
 // Map CRUD operations for Bills
-app.MapGet("/", [Authorize] () => "Hello World!").WithTags("A Test");
+app.MapGet("/", [Authorize] () => "Hello World!").WithTags("1. Test");
 
 app.MapGet("/bills", async (ApplicationDbContext db) =>
 	await db.Bills.ToListAsync()).WithTags("Basic Bills Operations:");
