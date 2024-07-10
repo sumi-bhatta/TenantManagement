@@ -1,4 +1,11 @@
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
+using System.Text;
 using TenantManagement.DataAccessLibrary.Data;
 using TenentManagement.Common.Models;
 
@@ -7,11 +14,69 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
+
+builder.Services.AddSwaggerGen(c =>
+{
+	c.SwaggerDoc("v1", new OpenApiInfo { Title = "Tenant Management", Version = "v1" });
+
+	var securityScheme = new OpenApiSecurityScheme
+	{
+		Name = "Authorization",
+		Type = SecuritySchemeType.Http,
+		Scheme = "bearer",
+		BearerFormat = "JWT",
+		In = ParameterLocation.Header,
+		Description = "Enter your JWT token in the format 'Bearer {your token}'",
+
+		Reference = new OpenApiReference
+		{
+			Type = ReferenceType.SecurityScheme,
+			Id = "Bearer"
+		}
+	};
+
+	c.AddSecurityDefinition("Bearer", securityScheme);
+
+	var securityRequirement = new OpenApiSecurityRequirement
+	{
+		{
+			new OpenApiSecurityScheme
+			{
+				Reference = new OpenApiReference
+				{
+					Type = ReferenceType.SecurityScheme,
+					Id = "Bearer"
+				}
+			},
+			new string[] {}
+		}
+	};
+
+	c.AddSecurityRequirement(securityRequirement);
+});
 // Add DbContext with in-memory database
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
+// JWT Authentication
+var key = Encoding.ASCII.GetBytes("Your_32_Byte_Secure_Key_1234567890"); // Use a secure key here
+
+builder.Services.AddAuthentication(options =>
+{
+	options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+	options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+	options.TokenValidationParameters = new TokenValidationParameters
+	{
+		ValidateIssuerSigningKey = true,
+		IssuerSigningKey = new SymmetricSecurityKey(key),
+		ValidateIssuer = false,
+		ValidateAudience = false
+	};
+});
 
 var app = builder.Build();
  
@@ -19,14 +84,43 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
 	app.UseSwagger();
-	app.UseSwaggerUI();
+	app.UseSwaggerUI(c =>
+	{
+		c.SwaggerEndpoint("/swagger/v1/swagger.json", "TenantManagementSystem");
+	});
 }
 
 app.UseHttpsRedirection();
+app.UseAuthentication(); // Use authentication middleware
 app.UseAuthorization();
 
+//login and signup
+app.MapPost("/login", (UserLogin userLogin) =>
+{
+	if (userLogin.Username == "test" && userLogin.Password == "password") // Replace with your own validation logic
+	{
+		var tokenHandler = new JwtSecurityTokenHandler();
+		var tokenDescriptor = new SecurityTokenDescriptor
+		{
+			Subject = new ClaimsIdentity(new Claim[]
+			{
+				new Claim(ClaimTypes.Name, userLogin.Username)
+			}),
+			Expires = DateTime.UtcNow.AddHours(1),
+			SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+		};
+		var token = tokenHandler.CreateToken(tokenDescriptor);
+		var tokenString = tokenHandler.WriteToken(token);
+
+		return Results.Ok(new { Token = tokenString });
+	}
+
+	return Results.Unauthorized();
+});
+
+
 // Map CRUD operations for Bills
-app.MapGet("/", () => "Hello World!").WithTags("A Test");
+app.MapGet("/", [Authorize] () => "Hello World!").WithTags("A Test");
 
 app.MapGet("/bills", async (ApplicationDbContext db) =>
 	await db.Bills.ToListAsync()).WithTags("Basic Bills Operations:");
